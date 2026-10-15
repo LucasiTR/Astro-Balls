@@ -7,12 +7,26 @@ from shot import Shot
 
 
 class Player(CircleShape):
+    INVINCIBILITY_DURATION = 2.0
+
     def __init__(self, x:int, y:int):
         super().__init__(x, y, constants.PLAYER_RADIUS)
         self.rotation = 0
         self.shoot_timer = 0
+        self.laser_sound = pygame.mixer.Sound("assets/sounds/Laser.wav")
+        self.explosion_sound = pygame.mixer.Sound("assets/sounds/Ship.wav")
+        self.invincible = False
+        self.invincible_timer = 0.0
+
+    def respawn(self, x, y):
+        self.position = pygame.Vector2(x, y)
+        self.velocity = pygame.Vector2(0, 0)
+        self.invincible = True
+        self.invincible_timer = Player.INVINCIBILITY_DURATION
 
     def draw(self, screen: pygame.Surface)-> None:
+        if self.invincible and int(self.invincible_timer * 10) % 2 == 0:
+            return
         pygame.draw.polygon(screen, "white", self.triangle(), constants.LINE_WIDTH)
 
     def rotate(self, dt: float) -> None:
@@ -28,6 +42,7 @@ class Player(CircleShape):
         if self.shoot_timer > 0:
             return
         self.shoot_timer = constants.PLAYER_SHOOT_COOLDOWN_SECONDS
+        self.laser_sound.play()
         shot = Shot(self.position.x, self.position.y)
         direction = pygame.Vector2(0, 1)
         direction = direction.rotate(self.rotation)
@@ -36,6 +51,11 @@ class Player(CircleShape):
     def update(self, dt: float) -> None:
         keys = pygame.key.get_pressed()
         self.shoot_timer -= dt
+
+        if self.invincible:
+            self.invincible_timer -= dt
+            if self.invincible_timer <= 0:
+                self.invincible = False
 
         if keys[pygame.K_w]:
             self.move(dt)
