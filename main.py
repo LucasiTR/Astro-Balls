@@ -2,12 +2,14 @@ from textwrap import fill
 
 import pygame
 import sys
+import os
 from asteroid import Asteroid
 from asteroidfield import AsteroidField
 from player import Player
 from constants import ASTEROID_MIN_RADIUS, SCREEN_WIDTH, SCREEN_HEIGHT
 from logger import log_state, log_event
 from shot import Shot
+from main_menu import MainMenu
 
 def main():
     pygame.init()
