@@ -7,14 +7,14 @@ class TouchController:
 
                 # --- CIRCULAR BUTTON DEFINITIONS ---
                 # Define buttons by their (Center X, Center Y) coordinates and Radius
-        self.thrust_center = (screen_width - 100, screen_height - 220)
+        self.thrust_center = (SCREEN_WIDTH - 100, SCREEN_HEIGHT - 220)
         self.thrust_radius = 45
 
-        self.fire_center = (screen_width - 220, screen_height - 120)
+        self.fire_center = (SCREEN_WIDTH - 220, SCREEN_HEIGHT - 120)
         self.fire_radius = 45
 
                 # Joystick configuration parameters (Already naturally circular)
-        self.joy_center = (120, screen_height - 140)
+        self.joy_center = (120, SCREEN_HEIGHT - 140)
         self.joy_max_radius = 70
         self.joy_knob_pos = list(self.joy_center)
 

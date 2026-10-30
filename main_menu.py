@@ -2,12 +2,13 @@
 import pygame
 import math
 import constants
-import leaderboard.json
+from leaderboard import LeaderboardManager
 
 class MainMenu:
     def __init__(self):
         self.font_title = pygame.font.SysFont("Arial", 45, bold=True)
         self.font_options = pygame.font.SysFont("Arial", 24)
+        self.leaderboard = LeaderboardManager()
 
         # --- CIRCULAR MENU UI BUTTONS ---
         # Establish symmetrical circular button anchors using dynamic screen bounds
@@ -49,14 +50,14 @@ class MainMenu:
     def draw(self, screen):
         """Renders the aesthetic layout elements onto the display surface."""
         # Render Game Title Text Header
-        title_surf = self.font_title.render("ASTEROIDS MOBILE", True, constants.COLOR_WHITE)
+        title_surf = self.font_title.render("ASTEROIDS MOBILE", True, "white")
         title_rect = title_surf.get_rect(center=(constants.SCREEN_WIDTH // 2, constants.SCREEN_HEIGHT // 3))
         screen.blit(title_surf, title_rect)
 
         # --- DRAW VISUAL CIRCULAR SELECTION BUTTONS ---
         # Draw Play Button Target Node
-        pygame.draw.circle(screen, constants.COLOR_GREEN, self.play_center, self.radius, 2)
-        txt_play = self.font_options.render("PLAY", True, constants.COLOR_GREEN)
+        pygame.draw.circle(screen, "green", self.play_center, self.radius, 2)
+        txt_play = self.font_options.render("PLAY", True, "green")
         rect_play = txt_play.get_rect(center=self.play_center)
         screen.blit(txt_play, rect_play)
 
