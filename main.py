@@ -54,7 +54,7 @@ def main():
     shots = pygame.sprite.Group()
     asteroids =  pygame.sprite.Group()
 
-    Player.containers = (updatable, drawable)
+    Player.containers = (drawable)
     Shot.containers = (shots, updatable, drawable)
     Asteroid.containers = (asteroids, updatable, drawable)
     AsteroidField.containers = (updatable)
@@ -99,17 +99,16 @@ def main():
                 menu_screen.draw(screen)
 
         elif current_state == "PLAYING":
+            signals = None
+
             if IS_MOBILE:
-                signals = touch_ctrl.process_events(events, constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT) # type: ignore
+                signals = touch_ctrl.process_events(events, constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT)
                 if signals and signals.get("shoot"):
                     laser_sound.play()
-                if Player is not None:
-                    player.update(dt)
             else:
+                # PC controls
                 keys = pygame.key.get_pressed()
                 mouse_buttons = pygame.mouse.get_pressed()
-
-                            # EXTRACT X AND Y DIRECTLY TO PREVENT TUPLE SUBTRACTION CRASHES:
                 mx, my = pygame.mouse.get_pos()
 
                 is_shooting = any(e.type == pygame.KEYDOWN and e.key == pygame.K_SPACE for e in events)
@@ -117,8 +116,6 @@ def main():
                     laser_sound.play()
 
                 pc_joy_center = (120, constants.SCREEN_HEIGHT - 140)
-
-                            # USE INDIVIDUAL EXTRACTED INTEGRAL METRICS:
                 dx = float(mx - pc_joy_center[0])
                 dy = float(my - pc_joy_center[1])
                 distance = math.hypot(dx, dy)
@@ -130,11 +127,12 @@ def main():
                     "is_joystick_alive": is_pc_joystick_engaged,
                     "rotation_offset": math.atan2(dx, dy) if is_pc_joystick_engaged else 0.0,
                     "rotate_left": keys[pygame.K_a] or keys[pygame.K_LEFT],
-                    "rotate_right": keys[pygame.K_a] or keys[pygame.K_RIGHT]
+                    "rotate_right": keys[pygame.K_d] or keys[pygame.K_RIGHT],  # fixed
                 }
 
-                control_mode = "MOBILE" if is_pc_joystick_engaged else "PC"
-                player.update(dt, signals, control_mode=control_mode)
+            # Update the player (only if alive)
+            if player_alive and player is not None:
+                player.update(dt, signals)
 
 
         updatable.update(dt)
@@ -161,11 +159,9 @@ def main():
         if not player_alive and current_state == "PLAYING":
             respawn_timer -= dt
             if respawn_timer <= 0:
-            # RECREATE THE INSTANCE OBJECT DIRECTLY:
-            # This automatically populates updatable and drawable containers via Pygame
-                player = Player(constants.SCREEN_WIDTH // 2, constants.SCREEN_HEIGHT // 2) # type: ignore
-                player.physics.position = pygame.Vector2(constants.SCREEN_WIDTH // 2, constants.SCREEN_HEIGHT // 2)
-                player.physics.velocity = pygame.Vector2(0, 0)
+                player = Player(constants.SCREEN_WIDTH // 2, constants.SCREEN_HEIGHT // 2)
+                player.respawn(constants.SCREEN_WIDTH // 2, constants.SCREEN_HEIGHT // 2)
+                player_alive = True
 
                 player_alive = True
         screen.fill("black")

@@ -1,72 +1,57 @@
 import pygame
 import math
 
+
 class PhysicsEntity:
-    def __init__(self, x, y, radius):
+    def __init__(self, x: float, y: float, radius: float):
         self.position = pygame.Vector2(x, y)
         self.velocity = pygame.Vector2(0, 0)
         self.acceleration = pygame.Vector2(0, 0)
         self.radius = radius
-        self.angle = 0  # In degrees
+        self.angle = 0.0  # degrees
 
-        # Skill-based movement tuning parameters
-        self.max_forward_speed = 400.0
-        self.max_reverse_speed = 150.0  # Strict cap to keep it skill-based
+        # Classic Asteroids + light resistance
+        self.max_speed = 420.0
+        self.thrust_power = 580.0      # strong forward
+        self.reverse_power = 180.0     # weak reverse (S key)
+        self.friction = 0.55           # light drag (0 = pure classic)
 
-    def handle_joystick_thrust(self, joystick_y_axis, thrust_power):
+    def apply_thrust(self, amount: float):
         """
-        Handles movement using a joystick axis.
-        Negative Y-axis moves forward, positive Y-axis triggers limited reverse thrust.
+        amount > 0 → forward thrust
+        amount < 0 → weak reverse thrust
         """
-        # Ensure joystick is past a small deadzone
-        if abs(joystick_y_axis) < 0.1:
+        if abs(amount) < 0.05:
             return
 
         rad = math.radians(self.angle)
+        forward = pygame.Vector2(math.sin(rad), -math.cos(rad))
 
-        # Calculate full direction vectors based on rotation angle
-        forward_vector = pygame.Vector2(math.sin(rad), -math.cos(rad))
-
-        if joystick_y_axis < 0:
-            # Forward thrust scaled by how far the stick is pushed
-            intensity = abs(joystick_y_axis)
-            self.acceleration = forward_vector * thrust_power * intensity
+        if amount > 0:
+            self.acceleration = forward * self.thrust_power * amount
         else:
-            # Reverse thrust triggers backward movement
-            intensity = joystick_y_axis
-            self.acceleration = -forward_vector * thrust_power * intensity
+            self.acceleration = forward * self.reverse_power * amount
 
-    def update(self, dt):
-        """Updates physics with zero friction and applies skill-based limits."""
-        # Zero friction: velocity only changes if acceleration is applied
+    def update(self, dt: float):
+        # Apply acceleration
         self.velocity += self.acceleration * dt
 
-        # Enforce speed restrictions dynamically based on travel direction
-        current_speed = self.velocity.length()
-        if current_speed > 0.01:
-            rad = math.radians(self.angle)
-            forward_vector = pygame.Vector2(math.sin(rad), -math.cos(rad))
+        # Light resistance
+        if self.friction > 0 and self.velocity.length() > 0:
+            drag = self.velocity.normalize() * self.friction * self.velocity.length() * dt
+            self.velocity -= drag
 
-            # Use dot product to check if traveling forward or backward
-            direction_dot = self.velocity.dot(forward_vector)
+        # Hard speed limit
+        if self.velocity.length() > self.max_speed:
+            self.velocity.scale_to_length(self.max_speed)
 
-            if direction_dot >= 0:
-                # Limit forward movement speed
-                if current_speed > self.max_forward_speed:
-                    self.velocity = self.velocity.normalize() * self.max_forward_speed
-            else:
-                # Clamp reverse movement strictly to keep it skill-based
-                if current_speed > self.max_reverse_speed:
-                    self.velocity = self.velocity.normalize() * self.max_reverse_speed
-
-        # Apply velocity to update coordinate position
+        # Move
         self.position += self.velocity * dt
 
-        # Reset acceleration forces for the next game frame loop
+        # Reset acceleration every frame
         self.acceleration = pygame.Vector2(0, 0)
 
-    def screen_wrap(self, screen_width, screen_height):
-        """Classic screen wrapping logic."""
+    def screen_wrap(self, screen_width: int, screen_height: int):
         if self.position.x < -self.radius:
             self.position.x = screen_width + self.radius
         elif self.position.x > screen_width + self.radius:

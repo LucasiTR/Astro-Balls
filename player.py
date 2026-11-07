@@ -24,19 +24,34 @@ class Player(CircleShape):
         self.physics.max_forward_speed = 400.0
         self.physics.max_reverse_speed = 150.0
 
-    def respawn(self, x, y):
-        self.position = pygame.Vector2(x, y)
-        self.velocity = pygame.Vector2(0, 0)
-        self.invincible = True
-        self.invincible_timer = Player.INVINCIBILITY_DURATION
+    def triangle(self) -> list[pygame.Vector2]:
+        forward = pygame.Vector2(0, 1).rotate(self.rotation)
+        right = pygame.Vector2(0, 1).rotate(self.rotation + 90) * self.radius // 1.5
+        a = self.position + forward * self.radius
+        b = self.position - forward * self.radius - right
+        c = self.position - forward * self.radius + right
+        return [a, b, c]
 
-        self.physics.position = pygame.Vector2(x, y)
-        self.physics.velocity = pygame.Vector2(0, 0)
-
-    def draw(self, screen: pygame.Surface)-> None:
+    def draw(self, screen: pygame.Surface) -> None:
         if self.invincible and int(self.invincible_timer * 10) % 2 == 0:
             return
         pygame.draw.polygon(screen, "white", self.triangle(), constants.LINE_WIDTH)
+
+    def shoot(self) -> None:
+        if self.shoot_timer > 0:
+            return
+        self.shoot_timer = constants.PLAYER_SHOOT_COOLDOWN_SECONDS
+        shot = Shot(self.position.x, self.position.y)
+        shot.velocity = pygame.Vector2(0, 1).rotate(self.rotation) * constants.PLAYER_SHOOT_SPEED
+
+    def respawn(self, x, y):
+        self.physics.position = pygame.Vector2(x, y)
+        self.physics.velocity = pygame.Vector2(0, 0)
+        self.position = pygame.Vector2(x, y)
+        self.velocity = pygame.Vector2(0, 0)
+        self.rotation = 0.0
+        self.invincible = True
+        self.invincible_timer = Player.INVINCIBILITY_DURATION
 
     def rotate(self, dt: float) -> None:
         self.rotation += constants.PLAYER_TURN_SPEED * dt
@@ -52,41 +67,53 @@ class Player(CircleShape):
             self.physics.handle_joystick_thrust(joystick_y_axis, constants.PLAYER_SPEED)
             self.physics.update(dt)
             self.position = self.physics.position
-    def shoot(self):
-        if self.shoot_timer > 0:
-            return
-        self.shoot_timer = constants.PLAYER_SHOOT_COOLDOWN_SECONDS
-        self.laser_sound.play()
-        shot = Shot(self.position.x, self.position.y)
-        direction = pygame.Vector2(0, 1)
-        direction = direction.rotate(self.rotation)
-        shot.velocity = direction * constants.PLAYER_SHOOT_SPEED
 
-    def update(self, dt: float) -> None:
-        keys = pygame.key.get_pressed()
-        self.shoot_timer -= dt
+    def update(self, dt: float, signals: dict | None = None) -> None:
+        self.shoot_timer = max(0.0, self.shoot_timer - dt)
 
         if self.invincible:
             self.invincible_timer -= dt
             if self.invincible_timer <= 0:
                 self.invincible = False
 
-        if keys[pygame.K_w]:
-            self.move(dt)
-        if keys[pygame.K_s]:
-            self.move(-dt)
-        if keys[pygame.K_a]:
-            self.rotate(-dt)
-        if keys[pygame.K_d]:
-            self.rotate(dt)
-        if keys[pygame.K_SPACE]:
-            self.shoot()
+        # ----- Input ---- #
+        thrust_input = 0.0
+        rotate_input = 0.0
 
+        if signals is None:
+                    # Keyboard (classic)
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+                rotate_input = -1
+            if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+                rotate_input = 1
+            if keys[pygame.K_w] or keys[pygame.K_UP]:
+                thrust_input = 1.0
+            if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+                thrust_input = -1.0          # weak reverse
+            if keys[pygame.K_SPACE]:
+                self.shoot()
+        else:
+            # Signals from main.py / touch controls
+            if signals.get("rotate_left"):
+                rotate_input = -1
+            if signals.get("rotate_right"):
+                rotate_input = 1
+            if signals.get("thrust"):
+                thrust_input = 1.0
+            if signals.get("shoot"):
+                self.shoot()
 
-    def triangle(self) -> list[pygame.Vector2]:
-        forward = pygame.Vector2(0, 1).rotate(self.rotation)
-        right = pygame.Vector2(0, 1).rotate(self.rotation + 90) * self.radius // 1.5
-        a = self.position + forward * self.radius
-        b = self.position - forward * self.radius - right
-        c = self.position - forward * self.radius + right
-        return [a, b, c]
+    # ----- Apply input -----
+        self.rotation += constants.PLAYER_TURN_SPEED * rotate_input * dt
+        self.physics.angle = self.rotation
+
+        self.physics.apply_thrust(thrust_input)
+
+        # ----- Step physics -----
+        self.physics.update(dt)
+        self.physics.screen_wrap(constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT)
+
+                # Keep CircleShape in sync (needed for drawing & collisions)
+        self.position = self.physics.position
+        self.velocity = self.physics.velocity
